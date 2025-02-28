@@ -19,16 +19,17 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Keeper_Ping_FullMethodName         = "/simpleKeeper.Keeper/Ping"
-	Keeper_Register_FullMethodName     = "/simpleKeeper.Keeper/Register"
-	Keeper_Login_FullMethodName        = "/simpleKeeper.Keeper/Login"
-	Keeper_CreateSecret_FullMethodName = "/simpleKeeper.Keeper/CreateSecret"
-	Keeper_GetSecret_FullMethodName    = "/simpleKeeper.Keeper/GetSecret"
-	Keeper_UpdateSecret_FullMethodName = "/simpleKeeper.Keeper/UpdateSecret"
-	Keeper_DeleteSecret_FullMethodName = "/simpleKeeper.Keeper/DeleteSecret"
-	Keeper_SecretsList_FullMethodName  = "/simpleKeeper.Keeper/SecretsList"
-	Keeper_SyncDataKeys_FullMethodName = "/simpleKeeper.Keeper/SyncDataKeys"
-	Keeper_PushDataKeys_FullMethodName = "/simpleKeeper.Keeper/PushDataKeys"
+	Keeper_Ping_FullMethodName          = "/simpleKeeper.Keeper/Ping"
+	Keeper_Register_FullMethodName      = "/simpleKeeper.Keeper/Register"
+	Keeper_Login_FullMethodName         = "/simpleKeeper.Keeper/Login"
+	Keeper_CreateSecret_FullMethodName  = "/simpleKeeper.Keeper/CreateSecret"
+	Keeper_GetSecret_FullMethodName     = "/simpleKeeper.Keeper/GetSecret"
+	Keeper_UpdateSecret_FullMethodName  = "/simpleKeeper.Keeper/UpdateSecret"
+	Keeper_DeleteSecret_FullMethodName  = "/simpleKeeper.Keeper/DeleteSecret"
+	Keeper_SecretsList_FullMethodName   = "/simpleKeeper.Keeper/SecretsList"
+	Keeper_SyncDataKeys_FullMethodName  = "/simpleKeeper.Keeper/SyncDataKeys"
+	Keeper_PushDataKeys_FullMethodName  = "/simpleKeeper.Keeper/PushDataKeys"
+	Keeper_SyncDataUsers_FullMethodName = "/simpleKeeper.Keeper/SyncDataUsers"
 )
 
 // KeeperClient is the client API for Keeper service.
@@ -45,6 +46,7 @@ type KeeperClient interface {
 	SecretsList(ctx context.Context, in *SecretsListRequest, opts ...grpc.CallOption) (*SecretsListResponse, error)
 	SyncDataKeys(ctx context.Context, in *SyncDataKeysRequest, opts ...grpc.CallOption) (*SyncDataKeysResponse, error)
 	PushDataKeys(ctx context.Context, in *PushDataKeysRequest, opts ...grpc.CallOption) (*PushDataKeysResponse, error)
+	SyncDataUsers(ctx context.Context, in *SyncDataUserRequest, opts ...grpc.CallOption) (*SyncDataUserResponse, error)
 }
 
 type keeperClient struct {
@@ -155,6 +157,16 @@ func (c *keeperClient) PushDataKeys(ctx context.Context, in *PushDataKeysRequest
 	return out, nil
 }
 
+func (c *keeperClient) SyncDataUsers(ctx context.Context, in *SyncDataUserRequest, opts ...grpc.CallOption) (*SyncDataUserResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SyncDataUserResponse)
+	err := c.cc.Invoke(ctx, Keeper_SyncDataUsers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // KeeperServer is the server API for Keeper service.
 // All implementations must embed UnimplementedKeeperServer
 // for forward compatibility.
@@ -169,6 +181,7 @@ type KeeperServer interface {
 	SecretsList(context.Context, *SecretsListRequest) (*SecretsListResponse, error)
 	SyncDataKeys(context.Context, *SyncDataKeysRequest) (*SyncDataKeysResponse, error)
 	PushDataKeys(context.Context, *PushDataKeysRequest) (*PushDataKeysResponse, error)
+	SyncDataUsers(context.Context, *SyncDataUserRequest) (*SyncDataUserResponse, error)
 	mustEmbedUnimplementedKeeperServer()
 }
 
@@ -208,6 +221,9 @@ func (UnimplementedKeeperServer) SyncDataKeys(context.Context, *SyncDataKeysRequ
 }
 func (UnimplementedKeeperServer) PushDataKeys(context.Context, *PushDataKeysRequest) (*PushDataKeysResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PushDataKeys not implemented")
+}
+func (UnimplementedKeeperServer) SyncDataUsers(context.Context, *SyncDataUserRequest) (*SyncDataUserResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SyncDataUsers not implemented")
 }
 func (UnimplementedKeeperServer) mustEmbedUnimplementedKeeperServer() {}
 func (UnimplementedKeeperServer) testEmbeddedByValue()                {}
@@ -410,6 +426,24 @@ func _Keeper_PushDataKeys_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Keeper_SyncDataUsers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SyncDataUserRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(KeeperServer).SyncDataUsers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Keeper_SyncDataUsers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(KeeperServer).SyncDataUsers(ctx, req.(*SyncDataUserRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Keeper_ServiceDesc is the grpc.ServiceDesc for Keeper service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -456,6 +490,10 @@ var Keeper_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PushDataKeys",
 			Handler:    _Keeper_PushDataKeys_Handler,
+		},
+		{
+			MethodName: "SyncDataUsers",
+			Handler:    _Keeper_SyncDataUsers_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

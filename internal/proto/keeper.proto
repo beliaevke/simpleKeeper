@@ -19,6 +19,8 @@ service Keeper {
   rpc SyncDataKeys(SyncDataKeysRequest) returns (SyncDataKeysResponse);
   rpc PushDataKeys(PushDataKeysRequest) returns (PushDataKeysResponse);
 
+  rpc SyncDataUsers(SyncDataUserRequest) returns (SyncDataUserResponse);
+
 }
 
 // Ping
@@ -151,4 +153,18 @@ message PushDataKeysRequest {
 
 message PushDataKeysResponse {
     string message = 1;
+}
+
+message UserData {
+    string userID = 1;
+    string userLogin = 2;
+    string userPassword = 3;
+}
+
+message SyncDataUserRequest {
+    int64 ownerID = 1;
+}
+
+message SyncDataUserResponse {
+    repeated UserData users = 1;
 }

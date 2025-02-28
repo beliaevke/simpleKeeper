@@ -44,7 +44,7 @@ func (sc *Sync) SyncDataKeys(ctx context.Context, si SyncInfo) ([]*proto.KeyData
 	}
 	rows, err := sc.db.Pool.Query(ctx, queries.SyncDataKeys, si.OwnerID)
 	if err != nil {
-		logger.Warnf("GetSecretsList: " + err.Error())
+		logger.Warnf("SyncDataKeys: " + err.Error())
 		return keys, err
 	}
 	for rows.Next() {
@@ -73,4 +73,31 @@ func (sc *Sync) PushDataKeys(ctx context.Context, keys []*proto.KeyData) error {
 		}
 	}
 	return nil
+}
+
+func (sc *Sync) SyncDataUsers(ctx context.Context, si SyncInfo) ([]*proto.UserData, error) {
+
+	var users []*proto.UserData
+
+	if si.OwnerID == 0 {
+		err := errors.New("ownerID is empty")
+		if err != nil {
+			logger.Warnf("SyncDataUsers: " + err.Error())
+			return users, err
+		}
+	}
+	rows, err := sc.db.Pool.Query(ctx, queries.SyncDataUsers, si.OwnerID)
+	if err != nil {
+		logger.Warnf("SyncDataUsers: " + err.Error())
+		return users, err
+	}
+	for rows.Next() {
+		var user proto.UserData
+		if err := rows.Scan(&user.UserID, &user.UserLogin, &user.UserPassword); err != nil {
+			return nil, err
+		}
+		users = append(users, &user)
+	}
+
+	return users, nil
 }

@@ -79,3 +79,10 @@ const PushDataKeys = `
 	DO UPDATE SET KeyAES = EXCLUDED.KeyAES, timestamp = EXCLUDED.timestamp 
 	WHERE EXCLUDED.timestamp > Keys.timestamp
 `
+const SyncDataUsers = `
+	SELECT userID, userLogin, userPassword 
+	FROM 
+		public.users 
+	WHERE 
+	userID = $1
+`

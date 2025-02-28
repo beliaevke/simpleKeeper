@@ -2,20 +2,9 @@ package app
 
 import (
 	"github.com/beliaevke/simpleKeeper/client/models"
-	"github.com/beliaevke/simpleKeeper/internal/proto"
 
 	"github.com/rivo/tview"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/encoding/gzip"
 )
-
-type secretsList struct {
-	bcard   string
-	binary  string
-	logpass string
-	text    string
-	names   []string
-}
 
 func FormMain(ac *AppClient) *tview.Form {
 
@@ -124,51 +113,13 @@ func FormAddSecret(ac *AppClient) *tview.Form {
 	return form
 }
 
-func secretStruct(ac *AppClient) secretsList {
-
-	var secretsList secretsList
-
-	req := proto.SecretsListRequest{
-		UserId: ac.Client.UserID,
-	}
-
-	compressor := grpc.UseCompressor(gzip.Name)
-
-	response, err := ac.Client.KeeperClient.SecretsList(ac.Client.NotifyCtx, &req, compressor)
-	if err != nil {
-		response.Error = err.Error()
-		return secretsList
-	}
-
-	sep := " | "
-	for _, sec := range response.Secrets {
-		switch sec.Type {
-		case "BCARD":
-			secretsList.bcard += sep + sec.Name
-		case "BINARY":
-			secretsList.binary += sep + sec.Name
-		case "LOGPASS":
-			secretsList.logpass += sep + sec.Name
-		case "TEXT":
-			secretsList.text += sep + sec.Name
-		default:
-			continue
-		}
-		secretsList.names = append(secretsList.names, sec.Name)
-	}
-
-	secretsList.bcard += sep
-	secretsList.binary += sep
-	secretsList.logpass += sep
-	secretsList.text += sep
-
-	return secretsList
-}
-
 func FormSecretsList(ac *AppClient) *tview.Form {
 
 	var SelSecret string
-	secretsList := secretStruct(ac)
+	secretsList, err := ac.GetSecretsList()
+	if err != nil {
+		ac.Client.Pages.AddAndSwitchToPage("FormError", FormError(ac, err.Error()), true)
+	}
 
 	form := tview.NewForm().
 		AddTextView("LogPass:", secretsList.logpass, 80, 1, true, false).
@@ -180,7 +131,7 @@ func FormSecretsList(ac *AppClient) *tview.Form {
 		}).
 		AddButton("Open secret", func() {
 			if content, err := ac.GetSecret(SelSecret); err == nil {
-				ac.Client.Pages.AddAndSwitchToPage("FormViewLogPass", FormViewSecret(ac, SelSecret, content), true)
+				ac.Client.Pages.AddAndSwitchToPage("FormViewSecret", FormViewSecret(ac, SelSecret, content), true)
 			} else {
 				ac.Client.Pages.AddAndSwitchToPage("FormError", FormError(ac, err.Error()), true)
 			}
@@ -358,7 +309,7 @@ func FormViewSecret(ac *AppClient, name string, content string) *tview.Form {
 		AddTextView("Secret name", name, 40, 1, true, false).
 		AddTextView("Info", secret.String(), 100, 2, true, false).
 		AddButton("Back", func() {
-			ac.Client.Pages.AddAndSwitchToPage("FormMain", FormMain(ac), true)
+			ac.Client.Pages.AddAndSwitchToPage("FormSecretsList", FormSecretsList(ac), true)
 		}).
 		AddButton("(!) Delete secret", func() {
 			if success, err := ac.DeleteSecret(name); success {

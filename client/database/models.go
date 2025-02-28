@@ -93,6 +93,62 @@ func LoginUser(db *sql.DB, userLogin string, userPassword string) (int, error) {
 	return userID, nil
 }
 
+func GetSecretsList(db *sql.DB, userID int) ([]*proto.SecretsList, error) {
+	var secrets []*proto.SecretsList
+
+	if userID <= 0 {
+		err := errors.New("wrong userID")
+		if err != nil {
+			logger.Warnf("LoginUser: " + err.Error())
+			return secrets, err
+		}
+	}
+
+	rows, err := db.Query("SELECT name, type FROM Secrets WHERE ownerID = ?", userID)
+	if err != nil {
+		return secrets, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var secret proto.SecretsList
+		if err := rows.Scan(&secret.Name, &secret.Type); err != nil {
+			log.Fatal(err)
+		}
+		secrets = append(secrets, &secret)
+	}
+
+	if err := rows.Err(); err != nil {
+		return secrets, err
+	}
+
+	return secrets, nil
+}
+
+func GetSecret(db *sql.DB, name string, userID int) (*proto.GetSecretResponse, error) {
+	var secret proto.GetSecretResponse
+
+	if userID <= 0 {
+		err := errors.New("wrong userID")
+		if err != nil {
+			logger.Warnf("GetSecret: " + err.Error())
+			return &secret, err
+		}
+	}
+
+	result := db.QueryRow("SELECT type, content, version, keyID FROM Secrets WHERE name = ? AND ownerID = ?", name, userID)
+	switch err := result.Scan(&secret.Type, &secret.Content, &secret.Version, &secret.KeyId); err {
+	case pgx.ErrNoRows:
+		return &secret, nil
+	case nil:
+		return &secret, nil
+	case err:
+		logger.Warnf("Query GetSecret: " + err.Error())
+		return &secret, err
+	}
+	return &secret, nil
+}
+
 // GetAESKey получает AES key
 func GetAESKey(db *sql.DB, ownerID int64, cryptoCert string) (int64, string, error) {
 	var KeyID int64
@@ -158,11 +214,9 @@ func SaveAESKey(db *sql.DB, ownerID int64, keyAES string) error {
 
 // SyncData cинхронизирует данные между клиентом и сервером
 func SyncData(sqliteDB *sql.DB, KeeperClient proto.KeeperClient, NotifyCtx context.Context, ownerID int64) {
-
 	syncDatabasesKeys(sqliteDB, KeeperClient, NotifyCtx, ownerID)
-
-	// TODO: sync users, secrets
-
+	syncDatabasesUsers(sqliteDB, KeeperClient, NotifyCtx, ownerID)
+	// TODO: sync secrets
 }
 
 func syncDatabasesKeys(sqliteDB *sql.DB, KeeperClient proto.KeeperClient, NotifyCtx context.Context, ownerID int64) {
@@ -220,6 +274,36 @@ func syncDatabasesKeys(sqliteDB *sql.DB, KeeperClient proto.KeeperClient, Notify
 	_, err = KeeperClient.PushDataKeys(NotifyCtx, &proto.PushDataKeysRequest{Keys: keys})
 	if err != nil {
 		logger.Warnf("Ошибка при отправке данных на сервер: " + err.Error())
+	}
+
+}
+
+func syncDatabasesUsers(sqliteDB *sql.DB, KeeperClient proto.KeeperClient, NotifyCtx context.Context, ownerID int64) {
+
+	// синхронизируем данные сервер -> клиент
+
+	// Запрос данных из PostgreSQL
+	resp, err := KeeperClient.SyncDataUsers(NotifyCtx, &proto.SyncDataUserRequest{OwnerID: ownerID})
+	if err != nil {
+		logger.Warnf("Ошибка при вызове SyncData: " + err.Error())
+		return
+	}
+
+	// Вставка данных в SQLite
+	stmt, err := sqliteDB.Prepare(`
+        INSERT INTO Users (userID, userLogin, userPassword) 
+        VALUES (?, ?, ?)
+    `)
+	if err != nil {
+		logger.Warnf("Ошибка подготовки запроса в SQLite: " + err.Error())
+		return
+	}
+	defer stmt.Close()
+
+	for _, user := range resp.Users {
+		if _, err := stmt.Exec(user.UserID, user.UserLogin, user.UserPassword); err != nil {
+			logger.Warnf("Ошибка вставки/обновленияв SQLite, KeyID: " + err.Error())
+		}
 	}
 
 }

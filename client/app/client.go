@@ -23,11 +23,22 @@ type ClientInterface interface {
 
 	AddLogPass(name string, logpass models.LogPass) (bool, string)
 	GetSecret(name string) (string, error)
+	GetSecretLocal(name string) (string, error)
 	DeleteSecret(name string) (bool, error)
+	GetSecretsList() (SecretsList, error)
+	GetSecretsListLocal() (SecretsList, error)
 }
 
 type AppClient struct {
 	Client *Client
+}
+
+type SecretsList struct {
+	bcard   string
+	binary  string
+	logpass string
+	text    string
+	names   []string
 }
 
 func (ac *AppClient) Login() (bool, string) {
@@ -84,7 +95,7 @@ func (ac *AppClient) LoginLocal() (bool, string) {
 		errMsg = "Ошибка аутентификации: " + err.Error()
 		return false, errMsg
 	} else if userID == -1 {
-		errMsg = "Ошибка входа"
+		errMsg = "Ошибка входа - пользователь не найден (необходима синхронизация)"
 		return false, errMsg
 	}
 
@@ -308,12 +319,50 @@ func (ac *AppClient) AddBCard(name string, txt models.BCard) (bool, string) {
 
 func (ac *AppClient) GetSecret(name string) (string, error) {
 
+	ping, err := ac.Client.KeeperClient.Ping(ac.Client.NotifyCtx, &proto.PingRequest{})
+	if err != nil {
+		logger.Warnf("Server is not available: " + err.Error())
+	}
+	if ping == nil || !ping.Available {
+		// Сервер недоступен
+		return ac.GetSecretLocal(name)
+	}
+
 	req := proto.GetSecretRequest{
 		Name:   name,
 		UserId: ac.Client.UserID,
 	}
 	compressor := grpc.UseCompressor(gzip.Name)
 	response, err := ac.Client.KeeperClient.GetSecret(ac.Client.NotifyCtx, &req, compressor)
+	if err != nil {
+		return "", err
+	}
+
+	// Поиск AES-ключа по ID
+	AESkey, err := database.GetAESKeyByID(ac.Client.DB, ac.Client.UserID, response.KeyId)
+	if err != nil {
+		return "", err
+	}
+
+	// Расшифрование AES-ключа с помощью RSA
+	keyAES, err := crypt.Decrypt(ac.Client.Cfg.FlagCryptoKey, AESkey)
+	if err != nil {
+		return "", err
+	}
+
+	// Расшифровка секрета
+	plaintext, err := crypt.DecryptAES(string(response.Content), keyAES)
+	if err != nil {
+		return "", err
+	}
+
+	return plaintext, nil
+}
+
+func (ac *AppClient) GetSecretLocal(name string) (string, error) {
+	var response *proto.GetSecretResponse
+
+	response, err := database.GetSecret(ac.Client.DB, name, int(ac.Client.UserID))
 	if err != nil {
 		return "", err
 	}
@@ -361,4 +410,87 @@ func (ac *AppClient) DeleteSecret(name string) (bool, error) {
 	}
 
 	return response.Success, nil
+}
+
+func (ac *AppClient) GetSecretsList() (SecretsList, error) {
+	var secretsList SecretsList
+
+	ping, err := ac.Client.KeeperClient.Ping(ac.Client.NotifyCtx, &proto.PingRequest{})
+	if err != nil {
+		logger.Warnf("Server is not available: " + err.Error())
+	}
+	if ping == nil || !ping.Available {
+		// Сервер недоступен
+		return ac.GetSecretsListLocal()
+	}
+
+	req := proto.SecretsListRequest{
+		UserId: ac.Client.UserID,
+	}
+
+	compressor := grpc.UseCompressor(gzip.Name)
+
+	response, err := ac.Client.KeeperClient.SecretsList(ac.Client.NotifyCtx, &req, compressor)
+	if err != nil {
+		response.Error = err.Error()
+		return secretsList, err
+	}
+
+	sep := " | "
+	for _, sec := range response.Secrets {
+		switch sec.Type {
+		case "BCARD":
+			secretsList.bcard += sep + sec.Name
+		case "BINARY":
+			secretsList.binary += sep + sec.Name
+		case "LOGPASS":
+			secretsList.logpass += sep + sec.Name
+		case "TEXT":
+			secretsList.text += sep + sec.Name
+		default:
+			continue
+		}
+		secretsList.names = append(secretsList.names, sec.Name)
+	}
+
+	secretsList.bcard += sep
+	secretsList.binary += sep
+	secretsList.logpass += sep
+	secretsList.text += sep
+
+	return secretsList, nil
+}
+
+func (ac *AppClient) GetSecretsListLocal() (SecretsList, error) {
+	var secretsList SecretsList
+	var secrets []*proto.SecretsList
+
+	secrets, err := database.GetSecretsList(ac.Client.DB, int(ac.Client.UserID))
+	if err != nil {
+		return secretsList, err
+	}
+
+	sep := " | "
+	for _, sec := range secrets {
+		switch sec.Type {
+		case "BCARD":
+			secretsList.bcard += sep + sec.Name
+		case "BINARY":
+			secretsList.binary += sep + sec.Name
+		case "LOGPASS":
+			secretsList.logpass += sep + sec.Name
+		case "TEXT":
+			secretsList.text += sep + sec.Name
+		default:
+			continue
+		}
+		secretsList.names = append(secretsList.names, sec.Name)
+	}
+
+	secretsList.bcard += sep
+	secretsList.binary += sep
+	secretsList.logpass += sep
+	secretsList.text += sep
+
+	return secretsList, nil
 }

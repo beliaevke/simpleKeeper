@@ -12,6 +12,7 @@ import (
 type database interface {
 	SyncDataKeys(ctx context.Context, s syncrepo.SyncInfo) ([]*proto.KeyData, error)
 	PushDataKeys(ctx context.Context, keys []*proto.KeyData) error
+	SyncDataUsers(ctx context.Context, s syncrepo.SyncInfo) ([]*proto.UserData, error)
 
 	Timeout() time.Duration
 }
