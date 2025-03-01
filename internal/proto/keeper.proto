@@ -19,6 +19,9 @@ service Keeper {
   rpc SyncDataKeys(SyncDataKeysRequest) returns (SyncDataKeysResponse);
   rpc PushDataKeys(PushDataKeysRequest) returns (PushDataKeysResponse);
 
+  rpc SyncDataSecrets(SyncDataSecretsRequest) returns (SyncDataSecretsResponse);
+  rpc PushDataSecrets(PushDataSecretsRequest) returns (PushDataSecretsResponse);
+
   rpc SyncDataUsers(SyncDataUserRequest) returns (SyncDataUserResponse);
 
 }
@@ -152,6 +155,33 @@ message PushDataKeysRequest {
 }
 
 message PushDataKeysResponse {
+    string message = 1;
+}
+
+message SecretData {
+    string name = 1;
+    string type = 2;
+    bytes content = 3;
+    int64 ownerID = 4;
+    string keyID = 5;
+    string timestamp = 6; // Используем строку для упрощения передачи
+    bool isDeleted = 7;
+}
+
+message SyncDataSecretsRequest {
+    int64 ownerID = 1;
+    string lastTimestamp = 2; // Поле для фильтрации по времени
+}
+
+message SyncDataSecretsResponse {
+    repeated SecretData Secrets = 1;
+}
+
+message PushDataSecretsRequest {
+    repeated SecretData Secrets = 1;
+}
+
+message PushDataSecretsResponse {
     string message = 1;
 }
 

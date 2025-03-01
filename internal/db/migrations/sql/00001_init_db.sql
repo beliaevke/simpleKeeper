@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS Secrets(
     ownerID integer references Users (userID),
     keyID integer references Keys (keyID),
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    isDeleted BOOLEAN DEFAULT FALSE,
     UNIQUE (name, ownerID)
 );
 

@@ -216,7 +216,7 @@ func SaveAESKey(db *sql.DB, ownerID int64, keyAES string) error {
 func SyncData(sqliteDB *sql.DB, KeeperClient proto.KeeperClient, NotifyCtx context.Context, ownerID int64) {
 	syncDatabasesKeys(sqliteDB, KeeperClient, NotifyCtx, ownerID)
 	syncDatabasesUsers(sqliteDB, KeeperClient, NotifyCtx, ownerID)
-	// TODO: sync secrets
+	syncDatabasesSecrets(sqliteDB, KeeperClient, NotifyCtx, ownerID)
 }
 
 func syncDatabasesKeys(sqliteDB *sql.DB, KeeperClient proto.KeeperClient, NotifyCtx context.Context, ownerID int64) {
@@ -232,11 +232,11 @@ func syncDatabasesKeys(sqliteDB *sql.DB, KeeperClient proto.KeeperClient, Notify
 
 	// Вставка данных в SQLite
 	stmt, err := sqliteDB.Prepare(`
-        INSERT INTO Keys (KeyID, KeyAES, ownerID, timestamp) 
-        VALUES (?, ?, ?, ?) 
-        ON CONFLICT (KeyID) 
-        DO UPDATE SET KeyAES = EXCLUDED.KeyAES, timestamp = EXCLUDED.timestamp 
-        WHERE EXCLUDED.timestamp > Keys.timestamp
+        INSERT INTO Keys (KeyAES, ownerID, timestamp) 
+		VALUES (?, ?, ?) 
+		ON CONFLICT (KeyID) 
+		DO UPDATE SET ownerID = EXCLUDED.ownerID, KeyAES = EXCLUDED.KeyAES 
+		WHERE EXCLUDED.timestamp > Keys.timestamp
     `)
 	if err != nil {
 		logger.Warnf("Ошибка подготовки запроса в SQLite: " + err.Error())
@@ -245,7 +245,7 @@ func syncDatabasesKeys(sqliteDB *sql.DB, KeeperClient proto.KeeperClient, Notify
 	defer stmt.Close()
 
 	for _, key := range resp.Keys {
-		if _, err := stmt.Exec(key.KeyID, key.KeyAES, key.OwnerID, key.Timestamp); err != nil {
+		if _, err := stmt.Exec(key.KeyAES, key.OwnerID, key.Timestamp); err != nil {
 			logger.Warnf("Ошибка вставки/обновленияв SQLite, KeyID: " + err.Error())
 		}
 	}
@@ -293,6 +293,8 @@ func syncDatabasesUsers(sqliteDB *sql.DB, KeeperClient proto.KeeperClient, Notif
 	stmt, err := sqliteDB.Prepare(`
         INSERT INTO Users (userID, userLogin, userPassword) 
         VALUES (?, ?, ?)
+		ON CONFLICT (userID) 
+		DO UPDATE SET userID = EXCLUDED.userID  
     `)
 	if err != nil {
 		logger.Warnf("Ошибка подготовки запроса в SQLite: " + err.Error())
@@ -306,4 +308,77 @@ func syncDatabasesUsers(sqliteDB *sql.DB, KeeperClient proto.KeeperClient, Notif
 		}
 	}
 
+}
+
+func syncDatabasesSecrets(sqliteDB *sql.DB, KeeperClient proto.KeeperClient, NotifyCtx context.Context, ownerID int64) {
+
+	// синхронизируем данные сервер -> клиент
+
+	// Запрос данных из PostgreSQL
+	resp, err := KeeperClient.SyncDataSecrets(NotifyCtx, &proto.SyncDataSecretsRequest{OwnerID: ownerID})
+	if err != nil {
+		logger.Warnf("Ошибка при вызове syncDatabasesSecrets: " + err.Error())
+		return
+	}
+
+	// Вставка данных в SQLite
+	stmt, err := sqliteDB.Prepare(`
+        INSERT INTO Secrets (name, type, content, ownerID, keyID, timestamp, isDeleted) 
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT (name, ownerID) 
+		DO UPDATE SET 
+			type = EXCLUDED.type,
+			content = EXCLUDED.content,
+			keyID = EXCLUDED.keyID,
+			timestamp = EXCLUDED.timestamp,
+			isDeleted = EXCLUDED.isDeleted
+		WHERE EXCLUDED.timestamp > Secrets.timestamp
+	`)
+	dlte, err := sqliteDB.Prepare(`
+        DELETE FROM Secrets WHERE name = ? AND ownerID = ? AND isDeleted = FALSE
+    `)
+
+	if err != nil {
+		logger.Warnf("Ошибка подготовки запроса в SQLite: " + err.Error())
+		return
+	}
+	defer stmt.Close()
+
+	for _, secret := range resp.Secrets {
+		if !secret.IsDeleted {
+			if _, err := stmt.Exec(secret.Name, secret.Type, secret.Content, secret.OwnerID, secret.KeyID, secret.Timestamp, secret.IsDeleted); err != nil {
+				logger.Warnf("Ошибка вставки/обновления в SQLite, KeyID: " + err.Error())
+			}
+		} else {
+			if _, err := dlte.Exec(secret.Name, secret.OwnerID); err != nil {
+				logger.Warnf("Ошибка удаления из SQLite, KeyID: " + err.Error())
+			}
+		}
+	}
+
+	// синхронизируем данные клиент -> сервер
+
+	// Запрос данных из SQLite
+	rows, err := sqliteDB.Query("SELECT name, type, content, ownerID, keyID, timestamp, isDeleted FROM Secrets WHERE ownerID = ?", ownerID)
+	if err != nil {
+		logger.Warnf("Ошибка извлечения данных из SQLite: " + err.Error())
+		return
+	}
+	defer rows.Close()
+
+	var secrets []*proto.SecretData
+	for rows.Next() {
+		var secret proto.SecretData
+		if err := rows.Scan(&secret.Name, &secret.Type, &secret.Content, &secret.OwnerID, &secret.KeyID, &secret.Timestamp, &secret.IsDeleted); err != nil {
+			logger.Warnf("Ошибка сканирования данных: " + err.Error())
+			continue
+		}
+		secrets = append(secrets, &secret)
+	}
+
+	// Отправка данных на сервер (в PostgreSQL)
+	_, err = KeeperClient.PushDataSecrets(NotifyCtx, &proto.PushDataSecretsRequest{Secrets: secrets})
+	if err != nil {
+		logger.Warnf("Ошибка при отправке данных на сервер: " + err.Error())
+	}
 }

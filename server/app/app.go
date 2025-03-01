@@ -219,6 +219,46 @@ func (srv *srv) SyncDataUsers(ctx context.Context, in *proto.SyncDataUserRequest
 	return &response, nil
 }
 
+func (srv *srv) SyncDataSecrets(ctx context.Context, in *proto.SyncDataSecretsRequest) (*proto.SyncDataSecretsResponse, error) {
+	var response proto.SyncDataSecretsResponse
+
+	sync := syncrepo.SyncInfo{
+		OwnerID: in.OwnerID,
+	}
+
+	syncrepo := syncs.NewRepo(srv.db)
+
+	ctx, cancel := context.WithTimeout(ctx, syncrepo.Timeout())
+	defer cancel()
+
+	secrets, err := syncrepo.SyncDataSecrets(ctx, sync)
+	if err != nil {
+		return &response, err
+	}
+
+	response.Secrets = secrets
+
+	return &response, nil
+}
+
+func (srv *srv) PushDataSecrets(ctx context.Context, in *proto.PushDataSecretsRequest) (*proto.PushDataSecretsResponse, error) {
+	var response proto.PushDataSecretsResponse
+
+	syncrepo := syncs.NewRepo(srv.db)
+
+	ctx, cancel := context.WithTimeout(ctx, syncrepo.Timeout())
+	defer cancel()
+
+	err := syncrepo.PushDataSecrets(ctx, in.Secrets)
+	if err != nil {
+		return &response, err
+	}
+
+	response.Message = "Secrets data pushed successfully"
+
+	return &response, nil
+}
+
 func (srv *srv) Login(ctx context.Context, in *proto.LoginRequest) (*proto.LoginResponse, error) {
 	var response proto.LoginResponse
 

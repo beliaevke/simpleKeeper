@@ -86,3 +86,15 @@ const SyncDataUsers = `
 	WHERE 
 	userID = $1
 `
+const SyncDataSecrets = `
+	SELECT name, type, content, ownerID, keyID, timestamp::text, isDeleted  
+	FROM 
+		public.secrets 
+	WHERE 
+	ownerID = $1
+`
+const PushDataSecrets = `
+	INSERT INTO Secrets (name, type, content, ownerID, keyID, timestamp, isDeleted) 
+	VALUES ($1, $2, $3, $4, $5, $6, $7) 
+	WHERE EXCLUDED.timestamp > Secrets.timestamp
+`

@@ -19,17 +19,19 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Keeper_Ping_FullMethodName          = "/simpleKeeper.Keeper/Ping"
-	Keeper_Register_FullMethodName      = "/simpleKeeper.Keeper/Register"
-	Keeper_Login_FullMethodName         = "/simpleKeeper.Keeper/Login"
-	Keeper_CreateSecret_FullMethodName  = "/simpleKeeper.Keeper/CreateSecret"
-	Keeper_GetSecret_FullMethodName     = "/simpleKeeper.Keeper/GetSecret"
-	Keeper_UpdateSecret_FullMethodName  = "/simpleKeeper.Keeper/UpdateSecret"
-	Keeper_DeleteSecret_FullMethodName  = "/simpleKeeper.Keeper/DeleteSecret"
-	Keeper_SecretsList_FullMethodName   = "/simpleKeeper.Keeper/SecretsList"
-	Keeper_SyncDataKeys_FullMethodName  = "/simpleKeeper.Keeper/SyncDataKeys"
-	Keeper_PushDataKeys_FullMethodName  = "/simpleKeeper.Keeper/PushDataKeys"
-	Keeper_SyncDataUsers_FullMethodName = "/simpleKeeper.Keeper/SyncDataUsers"
+	Keeper_Ping_FullMethodName            = "/simpleKeeper.Keeper/Ping"
+	Keeper_Register_FullMethodName        = "/simpleKeeper.Keeper/Register"
+	Keeper_Login_FullMethodName           = "/simpleKeeper.Keeper/Login"
+	Keeper_CreateSecret_FullMethodName    = "/simpleKeeper.Keeper/CreateSecret"
+	Keeper_GetSecret_FullMethodName       = "/simpleKeeper.Keeper/GetSecret"
+	Keeper_UpdateSecret_FullMethodName    = "/simpleKeeper.Keeper/UpdateSecret"
+	Keeper_DeleteSecret_FullMethodName    = "/simpleKeeper.Keeper/DeleteSecret"
+	Keeper_SecretsList_FullMethodName     = "/simpleKeeper.Keeper/SecretsList"
+	Keeper_SyncDataKeys_FullMethodName    = "/simpleKeeper.Keeper/SyncDataKeys"
+	Keeper_PushDataKeys_FullMethodName    = "/simpleKeeper.Keeper/PushDataKeys"
+	Keeper_SyncDataSecrets_FullMethodName = "/simpleKeeper.Keeper/SyncDataSecrets"
+	Keeper_PushDataSecrets_FullMethodName = "/simpleKeeper.Keeper/PushDataSecrets"
+	Keeper_SyncDataUsers_FullMethodName   = "/simpleKeeper.Keeper/SyncDataUsers"
 )
 
 // KeeperClient is the client API for Keeper service.
@@ -46,6 +48,8 @@ type KeeperClient interface {
 	SecretsList(ctx context.Context, in *SecretsListRequest, opts ...grpc.CallOption) (*SecretsListResponse, error)
 	SyncDataKeys(ctx context.Context, in *SyncDataKeysRequest, opts ...grpc.CallOption) (*SyncDataKeysResponse, error)
 	PushDataKeys(ctx context.Context, in *PushDataKeysRequest, opts ...grpc.CallOption) (*PushDataKeysResponse, error)
+	SyncDataSecrets(ctx context.Context, in *SyncDataSecretsRequest, opts ...grpc.CallOption) (*SyncDataSecretsResponse, error)
+	PushDataSecrets(ctx context.Context, in *PushDataSecretsRequest, opts ...grpc.CallOption) (*PushDataSecretsResponse, error)
 	SyncDataUsers(ctx context.Context, in *SyncDataUserRequest, opts ...grpc.CallOption) (*SyncDataUserResponse, error)
 }
 
@@ -157,6 +161,26 @@ func (c *keeperClient) PushDataKeys(ctx context.Context, in *PushDataKeysRequest
 	return out, nil
 }
 
+func (c *keeperClient) SyncDataSecrets(ctx context.Context, in *SyncDataSecretsRequest, opts ...grpc.CallOption) (*SyncDataSecretsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SyncDataSecretsResponse)
+	err := c.cc.Invoke(ctx, Keeper_SyncDataSecrets_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *keeperClient) PushDataSecrets(ctx context.Context, in *PushDataSecretsRequest, opts ...grpc.CallOption) (*PushDataSecretsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PushDataSecretsResponse)
+	err := c.cc.Invoke(ctx, Keeper_PushDataSecrets_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *keeperClient) SyncDataUsers(ctx context.Context, in *SyncDataUserRequest, opts ...grpc.CallOption) (*SyncDataUserResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SyncDataUserResponse)
@@ -181,6 +205,8 @@ type KeeperServer interface {
 	SecretsList(context.Context, *SecretsListRequest) (*SecretsListResponse, error)
 	SyncDataKeys(context.Context, *SyncDataKeysRequest) (*SyncDataKeysResponse, error)
 	PushDataKeys(context.Context, *PushDataKeysRequest) (*PushDataKeysResponse, error)
+	SyncDataSecrets(context.Context, *SyncDataSecretsRequest) (*SyncDataSecretsResponse, error)
+	PushDataSecrets(context.Context, *PushDataSecretsRequest) (*PushDataSecretsResponse, error)
 	SyncDataUsers(context.Context, *SyncDataUserRequest) (*SyncDataUserResponse, error)
 	mustEmbedUnimplementedKeeperServer()
 }
@@ -221,6 +247,12 @@ func (UnimplementedKeeperServer) SyncDataKeys(context.Context, *SyncDataKeysRequ
 }
 func (UnimplementedKeeperServer) PushDataKeys(context.Context, *PushDataKeysRequest) (*PushDataKeysResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PushDataKeys not implemented")
+}
+func (UnimplementedKeeperServer) SyncDataSecrets(context.Context, *SyncDataSecretsRequest) (*SyncDataSecretsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SyncDataSecrets not implemented")
+}
+func (UnimplementedKeeperServer) PushDataSecrets(context.Context, *PushDataSecretsRequest) (*PushDataSecretsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PushDataSecrets not implemented")
 }
 func (UnimplementedKeeperServer) SyncDataUsers(context.Context, *SyncDataUserRequest) (*SyncDataUserResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SyncDataUsers not implemented")
@@ -426,6 +458,42 @@ func _Keeper_PushDataKeys_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Keeper_SyncDataSecrets_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SyncDataSecretsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(KeeperServer).SyncDataSecrets(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Keeper_SyncDataSecrets_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(KeeperServer).SyncDataSecrets(ctx, req.(*SyncDataSecretsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Keeper_PushDataSecrets_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PushDataSecretsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(KeeperServer).PushDataSecrets(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Keeper_PushDataSecrets_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(KeeperServer).PushDataSecrets(ctx, req.(*PushDataSecretsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Keeper_SyncDataUsers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SyncDataUserRequest)
 	if err := dec(in); err != nil {
@@ -490,6 +558,14 @@ var Keeper_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PushDataKeys",
 			Handler:    _Keeper_PushDataKeys_Handler,
+		},
+		{
+			MethodName: "SyncDataSecrets",
+			Handler:    _Keeper_SyncDataSecrets_Handler,
+		},
+		{
+			MethodName: "PushDataSecrets",
+			Handler:    _Keeper_PushDataSecrets_Handler,
 		},
 		{
 			MethodName: "SyncDataUsers",

@@ -101,3 +101,47 @@ func (sc *Sync) SyncDataUsers(ctx context.Context, si SyncInfo) ([]*proto.UserDa
 
 	return users, nil
 }
+
+func (sc *Sync) SyncDataSecrets(ctx context.Context, si SyncInfo) ([]*proto.SecretData, error) {
+
+	var secrets []*proto.SecretData
+
+	if si.OwnerID == 0 {
+		err := errors.New("ownerID is empty")
+		if err != nil {
+			logger.Warnf("SyncDataSecrets: " + err.Error())
+			return secrets, err
+		}
+	}
+	rows, err := sc.db.Pool.Query(ctx, queries.SyncDataSecrets, si.OwnerID)
+	if err != nil {
+		logger.Warnf("SyncDataSecrets: " + err.Error())
+		return secrets, err
+	}
+	for rows.Next() {
+		var secret proto.SecretData
+		if err := rows.Scan(&secret.Name, &secret.Type, &secret.Content, &secret.OwnerID, &secret.KeyID, &secret.Timestamp, &secret.IsDeleted); err != nil {
+			return nil, err
+		}
+		secrets = append(secrets, &secret)
+	}
+
+	return secrets, nil
+}
+
+func (sc *Sync) PushDataSecrets(ctx context.Context, secrets []*proto.SecretData) error {
+
+	conn, err := sc.db.Pool.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Release()
+
+	for _, secret := range secrets {
+		_, err = conn.Exec(ctx, queries.PushDataSecrets, secret.Name, secret.Type, secret.Content, secret.OwnerID, secret.KeyID, secret.Timestamp, secret.IsDeleted)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

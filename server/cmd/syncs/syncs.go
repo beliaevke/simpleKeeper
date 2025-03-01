@@ -13,6 +13,8 @@ type database interface {
 	SyncDataKeys(ctx context.Context, s syncrepo.SyncInfo) ([]*proto.KeyData, error)
 	PushDataKeys(ctx context.Context, keys []*proto.KeyData) error
 	SyncDataUsers(ctx context.Context, s syncrepo.SyncInfo) ([]*proto.UserData, error)
+	SyncDataSecrets(ctx context.Context, s syncrepo.SyncInfo) ([]*proto.SecretData, error)
+	PushDataSecrets(ctx context.Context, secret []*proto.SecretData) error
 
 	Timeout() time.Duration
 }
