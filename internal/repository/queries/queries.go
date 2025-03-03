@@ -95,6 +95,8 @@ const SyncDataSecrets = `
 `
 const PushDataSecrets = `
 	INSERT INTO Secrets (name, type, content, ownerID, keyID, timestamp, isDeleted) 
-	VALUES ($1, $2, $3, $4, $5, $6, $7) 
+	VALUES ($1, $2, $3, $4, $5, $6, $7)
+	ON CONFLICT (name, ownerID) 
+	DO UPDATE SET type = EXCLUDED.type, content = EXCLUDED.content, keyID = EXCLUDED.keyID, timestamp = EXCLUDED.timestamp, isDeleted = EXCLUDED.isDeleted  
 	WHERE EXCLUDED.timestamp > Secrets.timestamp
 `

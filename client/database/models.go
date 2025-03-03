@@ -232,8 +232,8 @@ func syncDatabasesKeys(sqliteDB *sql.DB, KeeperClient proto.KeeperClient, Notify
 
 	// Вставка данных в SQLite
 	stmt, err := sqliteDB.Prepare(`
-        INSERT INTO Keys (KeyAES, ownerID, timestamp) 
-		VALUES (?, ?, ?) 
+        INSERT INTO Keys (KeyID, KeyAES, ownerID, timestamp) 
+		VALUES (?, ?, ?, ?) 
 		ON CONFLICT (KeyID) 
 		DO UPDATE SET ownerID = EXCLUDED.ownerID, KeyAES = EXCLUDED.KeyAES 
 		WHERE EXCLUDED.timestamp > Keys.timestamp
@@ -245,7 +245,7 @@ func syncDatabasesKeys(sqliteDB *sql.DB, KeeperClient proto.KeeperClient, Notify
 	defer stmt.Close()
 
 	for _, key := range resp.Keys {
-		if _, err := stmt.Exec(key.KeyAES, key.OwnerID, key.Timestamp); err != nil {
+		if _, err := stmt.Exec(key.KeyID, key.KeyAES, key.OwnerID, key.Timestamp); err != nil {
 			logger.Warnf("Ошибка вставки/обновленияв SQLite, KeyID: " + err.Error())
 		}
 	}
