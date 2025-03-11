@@ -29,7 +29,7 @@ func main() {
 		},
 	)
 	if err != nil {
-		logger.Warnf("Error RSA Cert: " + err.Error())
+		logger.Errorf("Error RSA Cert: " + err.Error())
 		return
 	}
 
@@ -39,7 +39,7 @@ func main() {
 	// Генерация AES-ключа
 	aesKey, err := service.GenerateRandom(keySize)
 	if err != nil {
-		logger.Warnf("Ошибка генерации ключа:" + err.Error())
+		logger.Errorf("Ошибка генерации ключа:" + err.Error())
 		return
 	}
 
@@ -49,7 +49,7 @@ func main() {
 	// Шифрование AES-ключа с помощью RSA
 	encryptedAESKey, err := crypt.Encrypt(cfg.FlagCryptoCert, string(aesKey))
 	if err != nil {
-		logger.Warnf("Ошибка шифрования AES ключа:" + err.Error())
+		logger.Errorf("Ошибка шифрования AES ключа:" + err.Error())
 		return
 	}
 
@@ -62,7 +62,7 @@ func main() {
 	// Сохранение зашифрованного ключа в файл
 	data, err := json.Marshal(keyInfo)
 	if err != nil {
-		logger.Warnf("Ошибка сохранения AES ключа:" + err.Error())
+		logger.Errorf("Ошибка сохранения AES ключа:" + err.Error())
 		return
 	}
 	err = os.WriteFile(cfg.FlagAESKeyInfo, data, 0644)

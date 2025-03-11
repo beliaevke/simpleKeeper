@@ -53,7 +53,7 @@ func (srv *srv) Run() error {
 
 	db, err := postgres.NewDB(ctx, srv.cfg)
 	if err != nil {
-		logger.Warnf("SetDB fail: " + err.Error())
+		logger.Errorf("SetDB fail: " + err.Error())
 		return err
 	}
 
@@ -66,7 +66,7 @@ func (srv *srv) Run() error {
 	// Настройка TLS
 	cert, err := tls.LoadX509KeyPair(srv.tlsd.TLSCertPath, srv.tlsd.TLSKeyPath)
 	if err != nil {
-		logger.Warnf("Failed to load server certificate: \n" + err.Error())
+		logger.Errorf("Failed to load server certificate: \n" + err.Error())
 		return err
 	}
 
@@ -76,7 +76,7 @@ func (srv *srv) Run() error {
 
 	listener, err := tls.Listen("tcp", ":3200", tlsConfig)
 	if err != nil {
-		logger.Warnf("gRPC Server error: " + err.Error())
+		logger.Errorf("gRPC Server error: " + err.Error())
 		return err
 	}
 	defer listener.Close()

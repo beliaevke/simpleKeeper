@@ -18,7 +18,7 @@ type DB struct {
 func NewDB(ctx context.Context, cfg config.ServerFlags) (*DB, error) {
 	dbpool, err := pgxpool.New(ctx, cfg.FlagDatabaseURI)
 	if err != nil {
-		return &DB{}, err
+		return nil, err
 	}
 	return &DB{Pool: dbpool, DefaultTimeout: cfg.DefaultTimeout}, nil
 }

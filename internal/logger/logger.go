@@ -139,3 +139,21 @@ func Infof(s string) {
 	// выводим сообщение
 	sugar.Infof("%s", s)
 }
+
+func Errorf(format string, args ...interface{}) {
+	// добавляем предустановленный логер NewDevelopment
+	logger, err := zap.NewDevelopment()
+	if err != nil {
+		// вызываем панику, если ошибка
+		log.Fatal(err)
+	}
+	// это нужно добавить, если логер буферизован
+	// в данном случае не буферизован, но привычка хорошая
+	defer logger.Sync() //nolint
+
+	// делаем логер SugaredLogger
+	sugar := logger.Sugar()
+
+	// выводим сообщение
+	sugar.Errorf(format, args...)
+}

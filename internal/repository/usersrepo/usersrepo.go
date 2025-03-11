@@ -37,11 +37,6 @@ func (ur *User) Timeout() time.Duration {
 }
 
 func (ur *User) CreateUser(ctx context.Context, u UserInfo) (int, error) {
-	tx, err := ur.db.Pool.Begin(ctx)
-	if err != nil {
-		return -1, err
-	}
-	defer tx.Rollback(ctx) //nolint
 	result := ur.db.Pool.QueryRow(ctx, queries.SelectUser, u.UserLogin)
 	switch err := result.Scan(&u.UserLogin); err {
 	case pgx.ErrNoRows:
@@ -49,33 +44,30 @@ func (ur *User) CreateUser(ctx context.Context, u UserInfo) (int, error) {
 		hashedPass := hex.EncodeToString(hash[:])
 		_, err = ur.db.Pool.Exec(ctx, queries.CreateUserInsert, u.UserLogin, hashedPass)
 		if err != nil {
-			logger.Warnf("INSERT INTO Users: " + err.Error())
+			logger.Errorf("INSERT INTO Users: " + err.Error())
 			return -1, err
 		}
 		userID, err := ur.GetUser(ctx, u)
 		if err != nil {
-			logger.Warnf("CreateUser ID : " + err.Error())
+			logger.Errorf("CreateUser ID : " + err.Error())
 			return userID, err
 		}
-		return userID, tx.Commit(ctx)
+		return userID, nil
 	case nil:
 		err = errors.New("user already exists with this login")
-		if err != nil {
-			logger.Warnf("INSERT INTO Users: " + err.Error())
-			return -1, err
-		}
-	case err:
-		logger.Warnf("Query CreateUser: " + err.Error())
+		logger.Errorf("INSERT INTO Users: " + err.Error())
+		return -1, err
+	default:
+		logger.Errorf("Query CreateUser: " + err.Error())
 		return -1, err
 	}
-	return -1, tx.Commit(ctx)
 }
 
 func (ur *User) GetUser(ctx context.Context, u UserInfo) (int, error) {
 	if u.UserLogin == "" || u.UserPassword == "" {
 		err := errors.New("login or password is empty")
 		if err != nil {
-			logger.Warnf("GetUser: " + err.Error())
+			logger.Errorf("GetUser: " + err.Error())
 			return -1, err
 		}
 	}
@@ -85,24 +77,23 @@ func (ur *User) GetUser(ctx context.Context, u UserInfo) (int, error) {
 		return -1, nil
 	case nil:
 		return u.UserID, nil
-	case err:
+	default:
 		var PassIsEmpty string
 		if u.UserPassword == "" {
 			PassIsEmpty = " -- PASS is empty"
 		} else {
 			PassIsEmpty = " -- PASS is not empty"
 		}
-		logger.Warnf("Query GetUser: " + err.Error() + " ID: " + strconv.Itoa(u.UserID) + " USER: " + u.UserLogin + PassIsEmpty)
+		logger.Errorf("Query GetUser: " + err.Error() + " ID: " + strconv.Itoa(u.UserID) + " USER: " + u.UserLogin + PassIsEmpty)
 		return -1, nil
 	}
-	return u.UserID, nil
 }
 
 func (ur *User) LoginUser(ctx context.Context, u UserInfo) (int, error) {
 	if u.UserLogin == "" || u.UserPassword == "" {
 		err := errors.New("login or password is empty")
 		if err != nil {
-			logger.Warnf("GetUser: " + err.Error())
+			logger.Errorf("GetUser: " + err.Error())
 			return -1, err
 		}
 	}
@@ -114,9 +105,8 @@ func (ur *User) LoginUser(ctx context.Context, u UserInfo) (int, error) {
 		return -1, nil
 	case nil:
 		return u.UserID, nil
-	case err:
-		logger.Warnf("Query LoginUser: " + err.Error())
+	default:
+		logger.Errorf("Query LoginUser: " + err.Error())
 		return -1, nil
 	}
-	return u.UserID, nil
 }

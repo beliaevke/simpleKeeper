@@ -38,13 +38,13 @@ func (sc *Sync) SyncDataKeys(ctx context.Context, si SyncInfo) ([]*proto.KeyData
 	if si.OwnerID == 0 {
 		err := errors.New("ownerID is empty")
 		if err != nil {
-			logger.Warnf("SyncDataKeys: " + err.Error())
+			logger.Errorf("SyncDataKeys: " + err.Error())
 			return keys, err
 		}
 	}
 	rows, err := sc.db.Pool.Query(ctx, queries.SyncDataKeys, si.OwnerID)
 	if err != nil {
-		logger.Warnf("SyncDataKeys: " + err.Error())
+		logger.Errorf("SyncDataKeys: " + err.Error())
 		return keys, err
 	}
 	for rows.Next() {
@@ -53,6 +53,10 @@ func (sc *Sync) SyncDataKeys(ctx context.Context, si SyncInfo) ([]*proto.KeyData
 			return nil, err
 		}
 		keys = append(keys, &key)
+	}
+
+	if err := rows.Err(); err != nil {
+		return keys, err
 	}
 
 	return keys, nil
@@ -82,13 +86,13 @@ func (sc *Sync) SyncDataUsers(ctx context.Context, si SyncInfo) ([]*proto.UserDa
 	if si.OwnerID == 0 {
 		err := errors.New("ownerID is empty")
 		if err != nil {
-			logger.Warnf("SyncDataUsers: " + err.Error())
+			logger.Errorf("SyncDataUsers: " + err.Error())
 			return users, err
 		}
 	}
 	rows, err := sc.db.Pool.Query(ctx, queries.SyncDataUsers, si.OwnerID)
 	if err != nil {
-		logger.Warnf("SyncDataUsers: " + err.Error())
+		logger.Errorf("SyncDataUsers: " + err.Error())
 		return users, err
 	}
 	for rows.Next() {
@@ -97,6 +101,10 @@ func (sc *Sync) SyncDataUsers(ctx context.Context, si SyncInfo) ([]*proto.UserDa
 			return nil, err
 		}
 		users = append(users, &user)
+	}
+
+	if err := rows.Err(); err != nil {
+		return users, err
 	}
 
 	return users, nil
@@ -109,13 +117,13 @@ func (sc *Sync) SyncDataSecrets(ctx context.Context, si SyncInfo) ([]*proto.Secr
 	if si.OwnerID == 0 {
 		err := errors.New("ownerID is empty")
 		if err != nil {
-			logger.Warnf("SyncDataSecrets: " + err.Error())
+			logger.Errorf("SyncDataSecrets: " + err.Error())
 			return secrets, err
 		}
 	}
 	rows, err := sc.db.Pool.Query(ctx, queries.SyncDataSecrets, si.OwnerID)
 	if err != nil {
-		logger.Warnf("SyncDataSecrets: " + err.Error())
+		logger.Errorf("SyncDataSecrets: " + err.Error())
 		return secrets, err
 	}
 	for rows.Next() {
@@ -124,6 +132,10 @@ func (sc *Sync) SyncDataSecrets(ctx context.Context, si SyncInfo) ([]*proto.Secr
 			return nil, err
 		}
 		secrets = append(secrets, &secret)
+	}
+
+	if err := rows.Err(); err != nil {
+		return secrets, err
 	}
 
 	return secrets, nil

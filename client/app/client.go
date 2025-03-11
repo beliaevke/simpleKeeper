@@ -402,10 +402,10 @@ func (ac *AppClient) DeleteSecret(name string) (bool, error) {
 	response, err := ac.Client.KeeperClient.DeleteSecret(ac.Client.NotifyCtx, &req, compressor)
 
 	if err != nil {
-		logger.Warnf("Client DeleteSecret error: " + err.Error())
+		logger.Errorf("Client DeleteSecret error: " + err.Error())
 		return false, err
 	} else if response.Error != "" {
-		logger.Warnf("Client DeleteSecret error: " + response.Error)
+		logger.Errorf("Client DeleteSecret error: " + response.Error)
 		return response.Success, errors.New(response.Error)
 	}
 

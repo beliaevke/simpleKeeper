@@ -19,17 +19,17 @@ func Run(cfg config.ServerFlags, ctx context.Context) error {
 
 	if cfg.FlagDatabaseURI == "" {
 		err := errors.New("database URI is empty")
-		logger.Warnf("InitDB fail: " + err.Error())
+		logger.Errorf("InitDB fail: " + err.Error())
 		return err
 	}
 
 	db, err := sql.Open("pgx", cfg.FlagDatabaseURI)
 	if err != nil {
-		logger.Warnf("sql.Open(): " + err.Error())
+		logger.Errorf("sql.Open(): " + err.Error())
 	}
 	defer func() {
 		if err := db.Close(); err != nil {
-			logger.Warnf("goose: failed to close DB: " + err.Error())
+			logger.Errorf("goose: failed to close DB: " + err.Error())
 		}
 	}()
 
@@ -37,7 +37,7 @@ func Run(cfg config.ServerFlags, ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, cfg.DefaultTimeout)
 	defer cancel()
 	if err := goose.UpContext(ctx, db, "sql"); err != nil {
-		logger.Warnf("goose up: run failed  " + err.Error())
+		logger.Errorf("goose up: run failed  " + err.Error())
 	}
 
 	return err

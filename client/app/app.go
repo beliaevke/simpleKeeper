@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"crypto/tls"
-	"database/sql"
 	"log"
 	"os"
 	"os/signal"
@@ -29,7 +28,7 @@ type Client struct {
 	Key          string
 	AESkey       string
 	KeyID        int64
-	DB           *sql.DB
+	DB           database.DB
 	App          *tview.Application
 	Pages        *tview.Pages
 	NotifyCtx    context.Context
@@ -52,7 +51,7 @@ func (Client *Client) Run() error {
 		log.Fatal(err)
 	}
 	Client.DB = db
-	defer database.CloseDB(Client.DB)
+	defer Client.DB.Close()
 
 	// Настройка TLS
 	tlsConfig := &tls.Config{
@@ -97,7 +96,7 @@ func (Client *Client) Run() error {
 			Client.Pages.AddPage("FormMain", FormMain(ac), true, true)
 
 			if err := Client.App.SetRoot(Client.Pages, true).EnableMouse(true).EnablePaste(true).Run(); err != nil {
-				logger.Warnf("Client start fail: " + err.Error())
+				logger.Errorf("Client start fail: " + err.Error())
 				return err
 			}
 			Client.Shutdown()

@@ -40,43 +40,35 @@ func (st *Secret) Timeout() time.Duration {
 }
 
 func (st *Secret) CreateSecret(ctx context.Context, s SecretInfo) (int, error) {
-	tx, err := st.db.Pool.Begin(ctx)
-	if err != nil {
-		return -1, err
-	}
-	defer tx.Rollback(ctx) //nolint
 	result := st.db.Pool.QueryRow(ctx, queries.SelectSecret, s.SecretName, s.OwnerID)
 	switch err := result.Scan(&s.SecretName); err {
 	case pgx.ErrNoRows:
 		_, err = st.db.Pool.Exec(ctx, queries.CreateSecretInsert, s.SecretName, s.SecretType, s.Content, s.OwnerID, s.KeyID)
 		if err != nil {
-			logger.Warnf("INSERT INTO Secrets: " + err.Error())
+			logger.Errorf("INSERT INTO Secrets: " + err.Error())
 			return -1, err
 		}
 		userID, err := st.GetSecret(ctx, s)
 		if err != nil {
-			logger.Warnf("CreateSecret ID : " + err.Error())
+			logger.Errorf("CreateSecret ID : " + err.Error())
 			return userID, err
 		}
-		return userID, tx.Commit(ctx)
+		return userID, nil
 	case nil:
 		err = errors.New("secret already exists with this name")
-		if err != nil {
-			logger.Warnf("INSERT INTO Secrets: " + err.Error())
-			return -1, err
-		}
-	case err:
-		logger.Warnf("Query CreateSecret: " + err.Error())
+		logger.Errorf("INSERT INTO Secrets: " + err.Error())
+		return -1, err
+	default:
+		logger.Errorf("Query CreateSecret: " + err.Error())
 		return -1, err
 	}
-	return -1, tx.Commit(ctx)
 }
 
 func (st *Secret) GetSecret(ctx context.Context, s SecretInfo) (int, error) {
 	if s.SecretName == "" || s.OwnerID == 0 {
 		err := errors.New("name or ownerID is empty")
 		if err != nil {
-			logger.Warnf("GetSecret: " + err.Error())
+			logger.Errorf("GetSecret: " + err.Error())
 			return -1, err
 		}
 	}
@@ -86,11 +78,10 @@ func (st *Secret) GetSecret(ctx context.Context, s SecretInfo) (int, error) {
 		return -1, nil
 	case nil:
 		return s.SecretID, nil
-	case err:
-		logger.Warnf("Query GetSecret: " + err.Error() + " ID: " + strconv.Itoa(s.SecretID) + " USER: " + strconv.FormatInt(s.OwnerID, 10))
+	default:
+		logger.Errorf("Query GetSecret: " + err.Error() + " ID: " + strconv.Itoa(s.SecretID) + " USER: " + strconv.FormatInt(s.OwnerID, 10))
 		return -1, nil
 	}
-	return s.SecretID, nil
 }
 
 func (st *Secret) GetSecretsList(ctx context.Context, OwnerID int64) ([]*proto.SecretsList, error) {
@@ -100,22 +91,26 @@ func (st *Secret) GetSecretsList(ctx context.Context, OwnerID int64) ([]*proto.S
 	if OwnerID == 0 {
 		err := errors.New("ownerID is empty")
 		if err != nil {
-			logger.Warnf("GetSecretsList: " + err.Error())
+			logger.Errorf("GetSecretsList: " + err.Error())
 			return secrets, err
 		}
 	}
 	rows, err := st.db.Pool.Query(ctx, queries.SelectSecrets, OwnerID)
 	if err != nil {
-		logger.Warnf("GetSecretsList: " + err.Error())
+		logger.Errorf("GetSecretsList: " + err.Error())
 		return secrets, err
 	}
 	for rows.Next() {
 		var secret proto.SecretsList
 		if err := rows.Scan(&secret.Name, &secret.Type); err != nil {
-			logger.Warnf("GetSecretsList: " + err.Error())
+			logger.Errorf("GetSecretsList: " + err.Error())
 			return secrets, err
 		}
 		secrets = append(secrets, &secret)
+	}
+
+	if err := rows.Err(); err != nil {
+		return secrets, err
 	}
 
 	return secrets, nil
@@ -129,7 +124,7 @@ func (st *Secret) GetSecretInfo(ctx context.Context, s SecretInfo) (*proto.GetSe
 		secretInfo.Error = "name or ownerID is empty"
 		err := errors.New(secretInfo.Error)
 		if err != nil {
-			logger.Warnf("GetSecretInfo: " + err.Error())
+			logger.Errorf("GetSecretInfo: " + err.Error())
 			return secretInfo, err
 		}
 	}
@@ -140,15 +135,12 @@ func (st *Secret) GetSecretInfo(ctx context.Context, s SecretInfo) (*proto.GetSe
 		secretInfo.Error = "ErrNoRows"
 		return secretInfo, nil
 	case nil:
-		secretInfo.Error = "ErrNoRows"
 		return secretInfo, nil
-	case err:
+	default:
 		secretInfo.Error = "Query GetSecretInfo: " + err.Error() + " ID: " + strconv.Itoa(s.SecretID) + " USER: " + strconv.FormatInt(s.OwnerID, 10)
-		logger.Warnf(secretInfo.Error)
+		logger.Errorf(secretInfo.Error)
 		return secretInfo, nil
 	}
-
-	return secretInfo, nil
 }
 
 func (st *Secret) DeleteSecret(ctx context.Context, s SecretInfo) (*proto.DeleteSecretResponse, error) {
@@ -159,14 +151,14 @@ func (st *Secret) DeleteSecret(ctx context.Context, s SecretInfo) (*proto.Delete
 		secretInfo.Error = "name or ownerID is empty"
 		err := errors.New(secretInfo.Error)
 		if err != nil {
-			logger.Warnf("DeleteSecret: " + err.Error())
+			logger.Errorf("DeleteSecret: " + err.Error())
 			return secretInfo, err
 		}
 	}
 	_, err := st.db.Pool.Query(ctx, queries.DeleteSecret, s.SecretName, s.OwnerID)
 	if err != nil {
 		secretInfo.Error = "Query DeleteSecret: " + err.Error() + " ID: " + strconv.Itoa(s.SecretID) + " USER: " + strconv.FormatInt(s.OwnerID, 10)
-		logger.Warnf(secretInfo.Error)
+		logger.Errorf(secretInfo.Error)
 		return secretInfo, nil
 	}
 
