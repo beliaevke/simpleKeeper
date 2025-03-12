@@ -1,0 +1,112 @@
+package usersrepo
+
+import (
+	"context"
+	"crypto/md5"
+	"encoding/hex"
+	"errors"
+	"strconv"
+	"time"
+
+	"github.com/beliaevke/simpleKeeper/internal/db/postgres"
+	"github.com/beliaevke/simpleKeeper/internal/logger"
+	"github.com/beliaevke/simpleKeeper/internal/repository/queries"
+
+	"github.com/jackc/pgx/v5"
+	_ "github.com/jackc/pgx/v5/stdlib"
+)
+
+type User struct {
+	db *postgres.DB
+}
+
+type UserInfo struct {
+	UserID       int    `json:"id,omitempty"`
+	UserLogin    string `json:"login"`
+	UserPassword string `json:"password"`
+}
+
+func NewUser(db *postgres.DB) *User {
+	return &User{
+		db: db,
+	}
+}
+
+func (ur *User) Timeout() time.Duration {
+	return ur.db.DefaultTimeout
+}
+
+func (ur *User) CreateUser(ctx context.Context, u UserInfo) (int, error) {
+	result := ur.db.Pool.QueryRow(ctx, queries.SelectUser, u.UserLogin)
+	switch err := result.Scan(&u.UserLogin); err {
+	case pgx.ErrNoRows:
+		hash := md5.Sum([]byte(u.UserPassword))
+		hashedPass := hex.EncodeToString(hash[:])
+		_, err = ur.db.Pool.Exec(ctx, queries.CreateUserInsert, u.UserLogin, hashedPass)
+		if err != nil {
+			logger.Errorf("INSERT INTO Users: " + err.Error())
+			return -1, err
+		}
+		userID, err := ur.GetUser(ctx, u)
+		if err != nil {
+			logger.Errorf("CreateUser ID : " + err.Error())
+			return userID, err
+		}
+		return userID, nil
+	case nil:
+		err = errors.New("user already exists with this login")
+		logger.Errorf("INSERT INTO Users: " + err.Error())
+		return -1, err
+	default:
+		logger.Errorf("Query CreateUser: " + err.Error())
+		return -1, err
+	}
+}
+
+func (ur *User) GetUser(ctx context.Context, u UserInfo) (int, error) {
+	if u.UserLogin == "" || u.UserPassword == "" {
+		err := errors.New("login or password is empty")
+		if err != nil {
+			logger.Errorf("GetUser: " + err.Error())
+			return -1, err
+		}
+	}
+	result := ur.db.Pool.QueryRow(ctx, queries.SelectUser, u.UserLogin)
+	switch err := result.Scan(&u.UserID); err {
+	case pgx.ErrNoRows:
+		return -1, nil
+	case nil:
+		return u.UserID, nil
+	default:
+		var PassIsEmpty string
+		if u.UserPassword == "" {
+			PassIsEmpty = " -- PASS is empty"
+		} else {
+			PassIsEmpty = " -- PASS is not empty"
+		}
+		logger.Errorf("Query GetUser: " + err.Error() + " ID: " + strconv.Itoa(u.UserID) + " USER: " + u.UserLogin + PassIsEmpty)
+		return -1, nil
+	}
+}
+
+func (ur *User) LoginUser(ctx context.Context, u UserInfo) (int, error) {
+	if u.UserLogin == "" || u.UserPassword == "" {
+		err := errors.New("login or password is empty")
+		if err != nil {
+			logger.Errorf("GetUser: " + err.Error())
+			return -1, err
+		}
+	}
+	hash := md5.Sum([]byte(u.UserPassword))
+	hashedPass := hex.EncodeToString(hash[:])
+	result := ur.db.Pool.QueryRow(ctx, queries.SelectUserWithPass, u.UserLogin, hashedPass)
+	switch err := result.Scan(&u.UserID); err {
+	case pgx.ErrNoRows:
+		return -1, nil
+	case nil:
+		return u.UserID, nil
+	default:
+		logger.Errorf("Query LoginUser: " + err.Error())
+		return -1, nil
+	}
+}

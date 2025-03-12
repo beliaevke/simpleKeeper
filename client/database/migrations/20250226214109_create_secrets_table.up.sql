@@ -1,0 +1,14 @@
+CREATE TABLE IF NOT EXISTS Secrets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    type TEXT NOT NULL,
+    content BLOB NOT NULL,
+    version TEXT DEFAULT (lower(hex(randomblob(16)))) NOT NULL UNIQUE,
+    ownerID INTEGER,
+    keyID INTEGER,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    isDeleted BOOLEAN DEFAULT FALSE,
+    FOREIGN KEY (ownerID) REFERENCES Users (userID),
+    FOREIGN KEY (keyID) REFERENCES Keys (keyID),
+    UNIQUE (name, ownerID)
+);

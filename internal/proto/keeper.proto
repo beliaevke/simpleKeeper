@@ -1,0 +1,200 @@
+syntax = "proto3";
+
+package simpleKeeper;
+
+option go_package = "simpleKeeper/internal/proto";
+
+service Keeper {
+  rpc Ping(PingRequest) returns (PingResponse);
+
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc Login(LoginRequest) returns (LoginResponse);
+
+  rpc CreateSecret(CreateSecretRequest) returns(CreateSecretResponse);
+  rpc GetSecret(GetSecretRequest) returns(GetSecretResponse);
+  rpc UpdateSecret(UpdateSecretRequest) returns(UpdateSecretResponse);
+  rpc DeleteSecret(DeleteSecretRequest) returns(DeleteSecretResponse);
+  rpc SecretsList(SecretsListRequest) returns(SecretsListResponse);
+
+  rpc SyncDataKeys(SyncDataKeysRequest) returns (SyncDataKeysResponse);
+  rpc PushDataKeys(PushDataKeysRequest) returns (PushDataKeysResponse);
+
+  rpc SyncDataSecrets(SyncDataSecretsRequest) returns (SyncDataSecretsResponse);
+  rpc PushDataSecrets(PushDataSecretsRequest) returns (PushDataSecretsResponse);
+
+  rpc SyncDataUsers(SyncDataUserRequest) returns (SyncDataUserResponse);
+
+}
+
+// Ping
+
+message PingRequest {}
+
+message PingResponse {
+    bool Available = 1;
+}
+
+// Auth
+message RegisterRequest {
+   string login = 1;
+   string password = 2;
+}
+
+message RegisterResponse {
+   int64 user_id = 1;
+   string token = 2;
+   string key = 3;
+   string error = 4;
+}
+
+message LoginRequest {
+   string login = 1;  
+   string password = 2; 
+}
+
+message LoginResponse {
+  int64 user_id = 1;
+   string token = 2;
+   string key = 3;
+   string status = 4;
+}
+
+// Keep
+
+message CreateSecretRequest {
+  string name = 1;
+  string type = 2;
+  bytes content = 3;
+  int64 user_id = 4;
+  int64 key_id = 5;
+}
+
+message CreateSecretResponse {
+  string name = 1;
+  string type = 2;
+  string version = 3;
+  string error = 4;
+}
+
+message GetSecretRequest{
+  string name = 1;
+  string type = 2;
+  int64 user_id = 3;
+}
+
+message GetSecretResponse {
+  string name = 1;
+  string type = 2;
+  bytes content = 3;
+  string version = 4;
+  int64 key_id = 5;
+  string error = 6;
+}
+
+message UpdateSecretRequest {
+  string name = 1;
+  string type = 2;
+  bytes content = 3;
+  int64 user_id = 4;
+}
+
+message UpdateSecretResponse {
+  string name = 1;
+  string type = 2;
+  string version = 3;
+  string error = 4;
+}
+
+message DeleteSecretRequest {
+  string name = 1;
+  string type = 2;
+  int64 user_id = 3;
+}
+
+message DeleteSecretResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message SecretsList {
+  string name = 1;
+  string type = 2;
+  bytes content = 3;
+  string version = 4;
+}
+
+message SecretsListRequest {
+  int64 user_id = 1;
+}
+
+message SecretsListResponse {
+  repeated SecretsList secrets = 1;
+  string error = 2;
+}
+
+// Sync
+
+message KeyData {
+    string keyID = 1;
+    string keyAES = 2;
+    int64 ownerID = 3;
+    string timestamp = 4; // Используем строку для упрощения передачи
+}
+
+message SyncDataKeysRequest {
+    int64 ownerID = 1;
+    string lastTimestamp = 2; // Поле для фильтрации по времени
+}
+
+message SyncDataKeysResponse {
+    repeated KeyData keys = 1;
+}
+
+message PushDataKeysRequest {
+    repeated KeyData keys = 1;
+}
+
+message PushDataKeysResponse {
+    string message = 1;
+}
+
+message SecretData {
+    string name = 1;
+    string type = 2;
+    bytes content = 3;
+    int64 ownerID = 4;
+    string keyID = 5;
+    string timestamp = 6; // Используем строку для упрощения передачи
+    bool isDeleted = 7;
+}
+
+message SyncDataSecretsRequest {
+    int64 ownerID = 1;
+    string lastTimestamp = 2; // Поле для фильтрации по времени
+}
+
+message SyncDataSecretsResponse {
+    repeated SecretData Secrets = 1;
+}
+
+message PushDataSecretsRequest {
+    repeated SecretData Secrets = 1;
+}
+
+message PushDataSecretsResponse {
+    string message = 1;
+}
+
+message UserData {
+    string userID = 1;
+    string userLogin = 2;
+    string userPassword = 3;
+}
+
+message SyncDataUserRequest {
+    int64 ownerID = 1;
+}
+
+message SyncDataUserResponse {
+    repeated UserData users = 1;
+}
